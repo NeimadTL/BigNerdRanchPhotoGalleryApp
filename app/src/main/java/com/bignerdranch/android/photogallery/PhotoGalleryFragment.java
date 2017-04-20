@@ -1,5 +1,6 @@
 package com.bignerdranch.android.photogallery;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -26,7 +27,7 @@ import java.util.List;
  * Created by Neimad on 10/04/2017.
  */
 
-public class PhotoGalleryFragment extends Fragment
+public class PhotoGalleryFragment extends VisibleFragment
 {
 
 
@@ -54,6 +55,11 @@ public class PhotoGalleryFragment extends Fragment
         setRetainInstance(true);
         setHasOptionsMenu(true);
         updateItems();
+
+        /*Intent intent = PollService.newIntent(getActivity());
+        getActivity().startService(intent);*/
+
+        /*PollService.setServiceAlarm(getActivity(), true);*/
 
         Handler responseHandler = new Handler();
         mThumbnailDownloader = new ThumbnailDownloader<>(responseHandler);
@@ -144,6 +150,16 @@ public class PhotoGalleryFragment extends Fragment
                 searchView.setQuery(query, false);
             }
         });
+
+        MenuItem toggleItem = menu.findItem(R.id.menu_item_toggle_polling);
+        if (PollService.isServiceAlarmOn(getActivity()))
+        {
+            toggleItem.setTitle(R.string.stop_polling);
+        }
+        else
+        {
+            toggleItem.setTitle(R.string.start_polling);
+        }
     }
 
 
@@ -156,6 +172,12 @@ public class PhotoGalleryFragment extends Fragment
             case R.id.menu_item_clear:
                 QueryPreferences.setStoredQuery(getActivity(), null);
                 updateItems();
+                return true;
+
+            case R.id.menu_item_toggle_polling:
+                boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
+                PollService.setServiceAlarm(getActivity(), shouldStartAlarm);
+                getActivity().invalidateOptionsMenu();
                 return true;
 
             default:
@@ -183,19 +205,34 @@ public class PhotoGalleryFragment extends Fragment
 
 
 
-    private class PhotoHolder extends RecyclerView.ViewHolder
+    private class PhotoHolder extends RecyclerView.ViewHolder implements  View.OnClickListener
     {
         private ImageView mItemImageView;
+        private GalleryItem mGalleryItem;
 
         public PhotoHolder(View itemView)
         {
             super(itemView);
             mItemImageView = (ImageView) itemView.findViewById(R.id.fragment_photo_gallery_image_view);
+            itemView.setOnClickListener(this);
         }
 
         public void bindDrawable(Drawable drawable)
         {
             mItemImageView.setImageDrawable(drawable);
+        }
+
+        public void bindGalleryItem(GalleryItem galleryItem)
+        {
+            mGalleryItem = galleryItem;
+        }
+
+        @Override
+        public void onClick(View v)
+        {
+            //Intent intent = new Intent(Intent.ACTION_VIEW, mGalleryItem.getPhotoPageUri());
+            Intent intent = PhotoPageActivity.newIntent(getActivity(), mGalleryItem.getPhotoPageUri());
+            startActivity(intent);
         }
     }
 
@@ -222,6 +259,7 @@ public class PhotoGalleryFragment extends Fragment
         public void onBindViewHolder(PhotoHolder photoHolder, int position)
         {
             GalleryItem galleryItem = mGalleryItems.get(position);
+            photoHolder.bindGalleryItem(galleryItem);
             //Drawable placeholder = getResources().getDrawable(R.drawable.bill_up_close);
             Drawable placeholder = ContextCompat.getDrawable(getActivity(), R.drawable.bill_up_close);
             photoHolder.bindDrawable(placeholder);
